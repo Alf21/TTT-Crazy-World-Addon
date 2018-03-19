@@ -1,0 +1,11 @@
+{
+	"title"		:	"Crazy World",
+	"type"		:	"entities",
+	"tags"		:	[ "fun" ],
+	"ignore"	:
+	[
+		"*.psd",
+		"*.vcproj",
+		"*.svn*"
+	]
+}
