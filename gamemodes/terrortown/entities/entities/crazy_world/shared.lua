@@ -3,7 +3,6 @@
 	TODO
 
 	- remove timers and create it in GM:Think with CurTime() to improve performance
-    - split this file into multiple files to improve the structure
 
 ]]--
 
@@ -18,7 +17,6 @@ if not ConVarExists(CONVAR) then
 end
 
 if SERVER then
-
 	resource.AddFile("sound/crazy_world/lucky_dube.mp3")
 
 	util.AddNetworkString("TTTOnHaloCreate")
@@ -82,11 +80,25 @@ action = {
 running = false
 destroyable = false
 bonusAble = false
+
 modified = false
-modifyTbl = {
-	["ttt_spec_prop_base"] = GetConVar("ttt_spec_prop_base"):GetString(),
-	["ttt_spec_prop_rechargetime"] = GetConVar("ttt_spec_prop_rechargetime"):GetString()
-} -- ttt_allow_discomb_jump 
+modifyTbl = {}
+--[[
+--modifyTbl["CONVAR_NAME"] = {GetConVar("CONVAR_NAME"):GetInt() or DEFAULT, MODIFIED}
+-- ttt_allow_discomb_jump 
+]]--
+if ConVarExists("ttt_spec_prop_base") then
+	modifyTbl["ttt_spec_prop_base"] = {GetConVar("ttt_spec_prop_base"):GetInt() or 8, 30}
+else 
+	modifyTbl["ttt_spec_prop_base"] = {8, 30}
+end
+
+if ConVarExists("ttt_spec_prop_rechargetime") then
+	modifyTbl["ttt_spec_prop_rechargetime"] = {GetConVar("ttt_spec_prop_rechargetime"):GetInt() or 1, 10}
+else
+	modifyTbl["ttt_spec_prop_rechargetime"] = {1, 10}
+end
+
 obj = nil
 touchedPlayer = nil
 virusPly = nil
@@ -121,8 +133,8 @@ function OnCommandCrazyWorld()
 		end
 	
 		for _, v in pairs(player.GetAll()) do
-			--v:PrintMessage(HUD_PRINTTALK, "[CW] ~~~ ! CrAzY wOrLd ! ~~~ (für " .. cwTime .. "s - Aktiviert durch '" .. touchedPlayer:Nick() .. "')")
-			v:PrintMessage(HUD_PRINTTALK, "[CW] ~~~ ! CrAzY wOrLd ! ~~~ (für " .. cwTime .. "s)")
+			--v:PrintMessage(HUD_PRINTTALK, "[CW] ~~~ ! CrAzY wOrLd ! ~~~ (fÃ¼r " .. cwTime .. "s - Aktiviert durch '" .. touchedPlayer:Nick() .. "')")
+			v:PrintMessage(HUD_PRINTTALK, "[CW] ~~~ ! CrAzY wOrLd ! ~~~ (fÃ¼r " .. cwTime .. "s)")
 			v:EmitSound("crazy_world/lucky_dube.mp3")
 		end
 
@@ -177,8 +189,9 @@ end
 function ModifyGame()
 	if SERVER then
 		if not modified then
-			RunConsoleCommand("ttt_spec_prop_base", "30")
-			RunConsoleCommand("ttt_spec_prop_rechargetime", "10")
+			for k, v in pairs(modifyTbl) do
+				RunConsoleCommand(k, v[2])
+			end
 
 			modified = true
 		end
@@ -188,8 +201,9 @@ end
 function UnModifyGame()
 	if SERVER then
 		if modified then
-			RunConsoleCommand("ttt_spec_prop_base", modifyTbl["ttt_spec_prop_base"])
-			RunConsoleCommand("ttt_spec_prop_rechargetime", modifyTbl["ttt_spec_prop_rechargetime"])
+			for k, v in pairs(modifyTbl) do
+				RunConsoleCommand(k, v[1])
+			end
 
 			modified = false
 		end
@@ -499,7 +513,7 @@ function StartVirus(time, rep, dmg)
     			virusPly:EmitSound("vo/npc/male01/pain0" .. tostring(math.random(1, 9)) .. ".wav")
 	    		i = i + 1
 	    		if i == rep then
-					virusPly:ChatPrint("[CW] Du hast den Virus überstanden!")
+					virusPly:ChatPrint("[CW] Du hast den Virus Ã¼berstanden!")
 	    			EndVirus()
 	    		end
 	    	end
@@ -727,12 +741,16 @@ function ENTw:OnRemove()
 end
 
 function ENTw:OnTakeDamage(dmg)
-	self:TakePhysicsDamage(dmg);
-	local newHealth = (self:Health() - dmg)
+	local newHealth = (self:Health() - dmg:GetDamage())
+	local atk = dmg:GetAttacker()
+	if IsActivePlayer(atk) then
+		touchedPlayer = atk
+	end
 	if newHealth <= 0 then
 		self:Remove()
 	else
 		self:SetHealth(newHealth)
+		self:TakePhysicsDamage(dmg)
 	end
 end
 
@@ -768,8 +786,10 @@ end
 function RemoveObj()
 	destroyable = false
 	if SERVER then
-		obj:Remove()
-		obj = nil
+		if obj ~= nil then
+			obj:Remove()
+			obj = nil
+		end
 	end
 end
 
@@ -777,13 +797,13 @@ hook.Add("TTTBeginRound", "CWSpawnObject", function()
 	bonusAble = true
 	SpawnObj()
 end)
-
+--[[
 hook.Add("PropBreak", "CWObjBreak", function(ply, prop)
 	if prop == obj then
 		touchedPlayer = ply
 	end
 end)
-
+]]--
 -- remove crazy_world activator
 hook.Add("TTTEndRound", "CWDestroyObject", function()
 	ResetBonus(touchedPlayer)
@@ -800,12 +820,12 @@ hook.Add("DoPlayerDeath", "CWEntityDeath", function(ply, attacker, dmg)
 			touchedPlayer = GetRandomPlayer()
 		else
 			touchedPlayer = attacker
-			touchedPlayer:ChatPrint("[CW] Der Bonus gehört schon bald dir!")
+			touchedPlayer:ChatPrint("[CW] Der Bonus gehÃ¶rt schon bald dir!")
 		end
 		if TRAITOR_KNOW_BONUS then
 			for _, v in pairs(player.GetAll()) do
 				if v:IsTraitor() then
-					v:ChatPrint("[CW] '" .. touchedPlayer:Nick() .. "' trägt nun den Bonus!")
+					v:ChatPrint("[CW] '" .. touchedPlayer:Nick() .. "' trÃ¤gt nun den Bonus!")
 				end
 			end
 		end
@@ -832,7 +852,7 @@ end
 
 -- util functions
 function IsActivePlayer(ply)
-	return ply:IsPlayer() and IsValid(ply) and ply:Alive() and ply:IsActive()
+	return IsValid(ply) and ply:IsPlayer() and ply:Alive() and ply:IsActive()
 end
 
 function GetActivePlayers()
