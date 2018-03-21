@@ -13,11 +13,14 @@ print("[CW] Initializing crazy_world")
 CONVAR = "cw_enabled"
 
 if not ConVarExists(CONVAR) then
-	CreateConVar(CONVAR, 1, { FCVAR_ARCHIVE, FCVAR_NOTIFY }, "Toggle crazy_world")
+	CreateConVar(CONVAR, 1, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Toggle crazy_world")
+end
+if not ConVarExists("cw_traitor_know_bonus") then
+    CreateConVar("cw_traitor_know_bonus", 1, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Toggle traitor know who wears the bonus")
 end
 
 if SERVER then
-	resource.AddFile("sound/crazy_world/lucky_dube.mp3")
+	resource.AddFile("sound/crazy_world/crazy.mp3")
 
 	util.AddNetworkString("TTTOnHaloCreate")
 	util.AddNetworkString("TTTOnHaloRemove")
@@ -35,7 +38,6 @@ end
 --------
 cwTime = 120
 objScale = 3
-TRAITOR_KNOW_BONUS = true
 DEBUG = true
 
 -- TODO handle this serverside ! 
@@ -133,9 +135,16 @@ function OnCommandCrazyWorld()
 		end
 	
 		for _, v in pairs(player.GetAll()) do
-			--v:PrintMessage(HUD_PRINTTALK, "[CW] ~~~ ! CrAzY wOrLd ! ~~~ (für " .. cwTime .. "s - Aktiviert durch '" .. touchedPlayer:Nick() .. "')")
-			v:PrintMessage(HUD_PRINTTALK, "[CW] ~~~ ! CrAzY wOrLd ! ~~~ (für " .. cwTime .. "s)")
-			v:EmitSound("crazy_world/lucky_dube.mp3")
+			v:PrintMessage(HUD_PRINTTALK, "[CW] ~~~ ! CrAzY wOrLd ! ~~~ (for " .. cwTime .. "s)")
+			v:EmitSound("crazy_world/crazy.mp3", SNDLVL_IDLE)
+		end
+        
+        if tobool(GetConVar("cw_traitor_know_bonus"):GetInt()) then
+			for _, v in pairs(player.GetAll()) do
+				if v:IsTraitor() then
+					v:ChatPrint("[CW] '" .. touchedPlayer:Nick() .. "' activated the bonus timer. He is wearing the bonus!")
+				end
+			end
 		end
 
 		local randAmount = math.random(1, 4)
@@ -175,7 +184,7 @@ function OnCommandCrazyWorld()
 	    	i = i + 1
 	    	if i % 30 == 0 and i ~= cwTime then
 	    		for _, v in pairs(player.GetAll()) do
-	    			v:ChatPrint("[CW] Noch " .. (cwTime - i) .. "s!")
+	    			v:ChatPrint("[CW] " .. (cwTime - i) .. "s remaining!")
 	    		end
 	    	end
 	    	if i == cwTime then
@@ -513,7 +522,7 @@ function StartVirus(time, rep, dmg)
     			virusPly:EmitSound("vo/npc/male01/pain0" .. tostring(math.random(1, 9)) .. ".wav")
 	    		i = i + 1
 	    		if i == rep then
-					virusPly:ChatPrint("[CW] Du hast den Virus überstanden!")
+					virusPly:ChatPrint("[CW] You survived the virus!")
 	    			EndVirus()
 	    		end
 	    	end
@@ -521,15 +530,15 @@ function StartVirus(time, rep, dmg)
 
 		hook.Add("PlayerHurt", "CWVirus", function(victim, attacker, healthRemaining, damageTaken)
 			if attacker:IsPlayer() and not attacker == victim then
-				virusPly:ChatPrint("[CW] Du hast den Virus an '" .. victim:Nick() .. "' abgegeben!")  
+				virusPly:ChatPrint("[CW] You gave the virus to '" .. victim:Nick() .. "'!")  
 				virusPly = victim
-				virusPly:ChatPrint("[CW] Du hast einen Virus von '" .. attacker:Nick() .. "' erhalten! Verletze einen anderen Spieler, um ihn abzugeben!")    
+				virusPly:ChatPrint("[CW] You got the virus from '" .. attacker:Nick() .. "'! Injure another player to get rid of the virus!")    
 			end
 		end)
 
 		virus = true
 		
-		virusPly:ChatPrint("[CW] Du hast einen Virus! Verletze einen anderen Spieler, um ihn abzugeben!")    
+		virusPly:ChatPrint("[CW] You got a virus! Injure another player to get rid of the virus!")    
 	end
 end
 
@@ -663,7 +672,7 @@ function GiveATip()
 	local rndPly = table.Random(inno)
 
 	for _, v in pairs(player.GetAll()) do
-		v:ChatPrint("[CW] Tipp: '" .. rndPly:Nick() .. "' ist ein Innocent!")
+		v:ChatPrint("[CW] Tip: '" .. rndPly:Nick() .. "' is an Innocent!")
 	end
 end
 
@@ -820,12 +829,12 @@ hook.Add("DoPlayerDeath", "CWEntityDeath", function(ply, attacker, dmg)
 			touchedPlayer = GetRandomPlayer()
 		else
 			touchedPlayer = attacker
-			touchedPlayer:ChatPrint("[CW] Der Bonus gehört schon bald dir!")
+			touchedPlayer:ChatPrint("[CW] Soon the bonus will be yours!")
 		end
-		if TRAITOR_KNOW_BONUS then
+		if tobool(GetConVar("cw_traitor_know_bonus"):GetInt()) then
 			for _, v in pairs(player.GetAll()) do
 				if v:IsTraitor() then
-					v:ChatPrint("[CW] '" .. touchedPlayer:Nick() .. "' trägt nun den Bonus!")
+					v:ChatPrint("[CW] '" .. touchedPlayer:Nick() .. "' is now wearing the bonus!")
 				end
 			end
 		end
