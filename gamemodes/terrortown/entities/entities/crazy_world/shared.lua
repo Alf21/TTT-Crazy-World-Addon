@@ -1,5 +1,9 @@
 --[[
 
+    Credits: Crazy_World by Alf21
+
+----------------------------------------------
+
 	TODO
 
 	- remove timers and create it in GM:Think with CurTime() to improve performance
@@ -10,13 +14,26 @@ AddCSLuaFile("shared.lua")
 
 print("[CW] Initializing crazy_world")
 
-CONVAR = "cw_enabled"
-
-if not ConVarExists(CONVAR) then
-	CreateConVar(CONVAR, 1, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Toggle crazy_world")
+if not ConVarExists("cw_enabled") then
+	CreateConVar("cw_enabled", 1, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Toggle crazy_world")
 end
 if not ConVarExists("cw_traitor_know_bonus") then
     CreateConVar("cw_traitor_know_bonus", 1, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Toggle traitor know who wears the bonus")
+end
+if not ConVarExists("cw_obj_health") then
+    CreateConVar("cw_obj_health", 750, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Set the crazy world object\'s health")
+end
+if not ConVarExists("cw_event_time") then
+    CreateConVar("cw_event_time", 120, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Set the crazy world event time")
+end
+if not ConVarExists("cw_obj_scale") then
+    CreateConVar("cw_obj_scale", 3, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Set the crazy world object\'s size scale")
+end
+if not ConVarExists("cw_debug") then
+    CreateConVar("cw_debug", 0, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Toggle the lua script debug")
+end
+if not ConVarExists("cw_play_sound") then
+    CreateConVar("cw_play_sound", 1, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Play sound if event is activated")
 end
 
 if SERVER then
@@ -34,11 +51,6 @@ if SERVER then
 	util.AddNetworkString("TTTOnNameStarts")
 	util.AddNetworkString("TTTOnNameEnds")
 end
-
---------
-cwTime = 120
-objScale = 3
-DEBUG = true
 
 -- TODO handle this serverside ! 
 haloActive = false
@@ -82,6 +94,7 @@ action = {
 running = false
 destroyable = false
 bonusAble = false
+spawnable = false
 
 modified = false
 modifyTbl = {}
@@ -106,40 +119,71 @@ touchedPlayer = nil
 virusPly = nil
 invisiblePly = nil -- TODO could use these vars instead of invisible bool vars...
 
+concommand.Add("cwtoggle", function(ply)
+    local b = not GetConVar("cw_enabled"):GetBool()
+    SetConVar("cw_enabled", tonumber(b))
+    
+    if not b and destroyable then
+        RemoveObj()
+    elseif b and not destroyable and spawnable then
+        SpawnObj()
+    end
+    
+	ply:ChatPrint("ToggleState: " .. tostring(b))
+end)
+
 concommand.Add("cwspawn", function(ply)
-	local b = (not tobool(GetConVar(CONVAR):GetInt()))
-	SetConVar(CONVAR, tonumber(b))
-	if b or not destroyable then
+    if not spawnable or not GetConVar("cw_enabled"):GetBool() then return end
+    
+	if not destroyable then
 		SpawnObj()
+        ply:ChatPrint("[CW] Spawned object")
 	else
 		RemoveObj()
+        ply:ChatPrint("[CW] Removed object")
 	end
-	ply:ChatPrint("ToggleState: " .. tostring(b))
 end)
 
 if SERVER then 
 	hook.Add("PlayerSay", "CWChatHook", function(ply, text, public)
-		if string.lower(text) == "!cwspawn" then
-			ply:ConCommand("cwspawn")
-			return ""
-		end
+        if ply:IsAdmin() then
+            if string.lower(text) == "!cwspawn" then
+                if not GetConVar("cw_enabled"):GetBool() then
+                    ply:ChatPrint("First you need to activate the addon by using '!cwtoggle'!")
+                elseif not spawnable then
+                    ply:ChatPrint("You need to wait until the round begins!")
+                else
+                    ply:ConCommand("cwspawn")
+                end
+                
+                return ""
+            elseif string.lower(text) == "!cwtoggle" then
+                ply:ConCommand("cwtoggle")
+                
+                return ""
+            end
+        end
 	end)
 end
 
 function OnCommandCrazyWorld()
-	if GetConVar(CONVAR):GetBool() and not running then
+	if GetConVar("cw_enabled"):GetBool() and not running then
 		running = true
+        
+        local cwTime = GetConVar("cw_event_time"):GetInt()
 
-		if DEBUG then
+		if GetConVar("cw_debug"):GetBool() then
 			print("[CW] OnCommandCrazyWorld called")
 		end
 	
 		for _, v in pairs(player.GetAll()) do
 			v:PrintMessage(HUD_PRINTTALK, "[CW] ~~~ ! CrAzY wOrLd ! ~~~ (for " .. cwTime .. "s)")
-			v:EmitSound("crazy_world/crazy.mp3", SNDLVL_IDLE)
+            if GetConVar("cw_play_sound"):GetBool() then
+                v:EmitSound("crazy_world/crazy.mp3", SNDLVL_IDLE)
+            end
 		end
         
-        if tobool(GetConVar("cw_traitor_know_bonus"):GetInt()) then
+        if GetConVar("cw_traitor_know_bonus"):GetBool() and touchedPlayer ~= nil and IsValid(touchedPlayer) then
 			for _, v in pairs(player.GetAll()) do
 				if v:IsTraitor() then
 					v:ChatPrint("[CW] '" .. touchedPlayer:Nick() .. "' activated the bonus timer. He is wearing the bonus!")
@@ -164,7 +208,7 @@ function OnCommandCrazyWorld()
 			local r = table.Random(tmp)
 			action[r](cwTime)
 			RemoveFromTable(tmp, r)
-			if DEBUG then
+			if GetConVar("cw_debug"):GetBool() then
 				print("[CW] r:" .. r .. " - rand: " .. randAmount)
 			end
 		end
@@ -681,27 +725,33 @@ end
 
 -- cleanup
 hook.Add("TTTPrepareRound", "StopCrazyWorld", function()
-    for _, v in pairs(player.GetAll()) do
-    	if SERVER then
-			UnModifyGame()
-		end
-
-		StopRandomPlayerShoot(v)
-		EnableFlashlights()
-		EndVirus()
-		UnMinify()
-		SpeedDown()
-		if SERVER then
-			RemovePlayerHalos()
-			DisableScreenEffect()
-			DisableBlind()
-			DisableFog()
-			EnableNames()
-			EndFreeze()
-			Visibility()
-		end
+    if GetConVar("cw_enabled"):GetBool() then
+        CleanUp()
     end
 end)
+
+function CleanUp()
+    for _, v in pairs(player.GetAll()) do
+        if SERVER then
+            UnModifyGame()
+        end
+
+        StopRandomPlayerShoot(v)
+        EnableFlashlights()
+        EndVirus()
+        UnMinify()
+        SpeedDown()
+        if SERVER then
+            RemovePlayerHalos()
+            DisableScreenEffect()
+            DisableBlind()
+            DisableFog()
+            EnableNames()
+            EndFreeze()
+            Visibility()
+        end
+    end
+end
 
 -- crazy_world object
 local ENTw = {}
@@ -729,7 +779,7 @@ function ENTw:Initialize()
         phys:Wake()
     end
 
-    self:SetHealth(750)
+    self:SetHealth(GetConVar("cw_obj_health"):GetInt())
 end
 
 --[[
@@ -778,24 +828,29 @@ scripted_ents.Register(ENTw, "crazy_world_obj")
 function SpawnObj()
 	destroyable = true
 	if SERVER then
-		local spawn = table.Random(ents.FindByClass("info_player_deathmatch"))
-		obj = ents.Create("crazy_world_obj")
-		if not IsValid(obj) then return end
-		local pos = spawn:GetPos()
-		pos.z = (pos.z + 2)
-		obj:SetPos(pos)
-    	obj:SetModelScale(objScale)
-    	local mins, maxs = obj:GetCollisionBounds()
-		obj:SetCollisionBounds(mins * objScale, maxs * objScale)
-		obj:Spawn()
-		obj:Activate()
+        if GetConVar("cw_enabled"):GetBool() then
+            if spawnable then
+                local spawn = table.Random(ents.FindByClass("info_player_deathmatch"))
+                obj = ents.Create("crazy_world_obj")
+                if not IsValid(obj) then return end
+                local pos = spawn:GetPos()
+                pos.z = (pos.z + 2)
+                obj:SetPos(pos)
+                local objScale = GetConVar("cw_obj_scale"):GetInt()
+                obj:SetModelScale(objScale)
+                local mins, maxs = obj:GetCollisionBounds()
+                obj:SetCollisionBounds(mins * objScale, maxs * objScale)
+                obj:Spawn()
+                obj:Activate()
+            end
+        end
 	end
 end
 
 function RemoveObj()
 	destroyable = false
 	if SERVER then
-		if obj ~= nil then
+		if obj ~= nil and IsValid(obj) then -- IsValid(...) should be enough
 			obj:Remove()
 			obj = nil
 		end
@@ -803,46 +858,48 @@ function RemoveObj()
 end
 
 hook.Add("TTTBeginRound", "CWSpawnObject", function()
-	bonusAble = true
-	SpawnObj()
+    if GetConVar("cw_enabled"):GetBool() then
+        bonusAble = true
+        spawnable = true
+        SpawnObj()
+    end
 end)
---[[
-hook.Add("PropBreak", "CWObjBreak", function(ply, prop)
-	if prop == obj then
-		touchedPlayer = ply
-	end
-end)
-]]--
+
 -- remove crazy_world activator
 hook.Add("TTTEndRound", "CWDestroyObject", function()
-	ResetBonus(touchedPlayer)
-	bonusAble = false
-	RemoveObj()
-	touchedPlayer = nil
+    if GetConVar("cw_enabled"):GetBool() then
+        spawnable = false
+        ResetBonus(touchedPlayer)
+        bonusAble = false
+        RemoveObj()
+        touchedPlayer = nil
+    end
 end)
 
 -- bonus
 hook.Add("DoPlayerDeath", "CWEntityDeath", function(ply, attacker, dmg)
-	touchedPlayer = nil
-	if bonusAble then
-    	if not IsActivePlayer(ply) or ply == attacker or not IsActivePlayer(attacker) then
-			touchedPlayer = GetRandomPlayer()
-		else
-			touchedPlayer = attacker
-			touchedPlayer:ChatPrint("[CW] Soon the bonus will be yours!")
-		end
-		if tobool(GetConVar("cw_traitor_know_bonus"):GetInt()) then
-			for _, v in pairs(player.GetAll()) do
-				if v:IsTraitor() then
-					v:ChatPrint("[CW] '" .. touchedPlayer:Nick() .. "' is now wearing the bonus!")
-				end
-			end
-		end
-	end
+    if GetConVar("cw_enabled"):GetBool() then
+        touchedPlayer = nil
+        if bonusAble then
+            if not IsActivePlayer(ply) or ply == attacker or not IsActivePlayer(attacker) then
+                touchedPlayer = GetRandomPlayer()
+            else
+                touchedPlayer = attacker
+                touchedPlayer:ChatPrint("[CW] Soon the bonus will be yours!")
+            end
+            if GetConVar("cw_traitor_know_bonus"):GetBool() and touchedPlayer ~= nil and IsValid(touchedPlayer) then
+                for _, v in pairs(player.GetAll()) do
+                    if v:IsTraitor() then
+                        v:ChatPrint("[CW] '" .. touchedPlayer:Nick() .. "' is now wearing the bonus!")
+                    end
+                end
+            end
+        end
+    end
 end)
 
 function GiveBonus(ply)
-	if not bonusAble or touchedPlayer == nil then return end
+	if not bonusAble or touchedPlayer == nil or ply == nil or not IsValid(ply) then return end
 	if SERVER then
 		ply:SetMaxHealth(ply:GetMaxHealth() * 2)
 	end --beevis said so
@@ -850,7 +907,7 @@ function GiveBonus(ply)
 end
 
 function ResetBonus(ply)
-	if not ply == nil then
+	if ply ~= nil and IsValid(ply) then
 		if SERVER then
 			ply:SetMaxHealth(ply:GetMaxHealth() / 2)
 		end --beevis said so

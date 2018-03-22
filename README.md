@@ -6,3 +6,16 @@ This is a fun addon for the Game Garry's Mod (GMod) - **TTT**
 - **Step 3:** **Restart** your server
 
 #### *Have Fun!*
+
+##### CONVARS:
+- cw_enabled (Default: 1)
+- cw_traitor_know_bonus (Default: 1)
+- cw_obj_health (Default: 750)
+- cw_event_time (Default: 120)
+- cw_obj_scale (Default: 3)
+- cw_debug (Default: 0)
+- cw_play_sound (Default: 1)
+
+##### COMMANDS:
+- !cwtoggle
+- !cwspawn
