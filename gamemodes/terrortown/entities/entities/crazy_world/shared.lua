@@ -7,6 +7,8 @@
 	TODO
 
 	- remove timers and create it in GM:Think with CurTime() to improve performance
+    - explosive shots
+    - split files for better structure
 
 ]]--
 
@@ -123,8 +125,14 @@ concommand.Add("cwtoggle", function(ply)
     local b = not GetConVar("cw_enabled"):GetBool()
     SetConVar("cw_enabled", tonumber(b))
     
-    if not b and destroyable then
-        RemoveObj()
+    if not b then
+        if running then
+            CleanUp()
+        end
+        
+        if destroyable then
+            RemoveObj()
+        end
     elseif b and not destroyable and spawnable then
         SpawnObj()
     end
@@ -216,10 +224,18 @@ function OnCommandCrazyWorld()
 		ModifyGame()
 
 		timer.Simple(cwTime, function()
-			GiveBonus(touchedPlayer)
-			if SERVER then
-				UnModifyGame()
-			end
+            if GetConVar("cw_enabled"):GetBool() then
+                GiveBonus(touchedPlayer)
+                
+                if SERVER then
+                    UnModifyGame()
+                end
+                
+                for _, v in pairs(player.GetAll()) do
+                    v:PrintMessage(HUD_PRINTTALK, "[CW] Crazy World has finished!")
+                end
+            end
+            
 	        running = false
 	    end)
 
@@ -714,6 +730,8 @@ function GiveATip()
 	end
 
 	local rndPly = table.Random(inno)
+    
+    if rndPly == nil or not IsValid(rndPly) then return end
 
 	for _, v in pairs(player.GetAll()) do
 		v:ChatPrint("[CW] Tip: '" .. rndPly:Nick() .. "' is an Innocent!")
