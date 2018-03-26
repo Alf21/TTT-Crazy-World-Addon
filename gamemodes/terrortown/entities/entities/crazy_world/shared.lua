@@ -19,21 +19,27 @@ print("[CW] Initializing crazy_world")
 if not ConVarExists("cw_enabled") then
 	CreateConVar("cw_enabled", 1, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Toggle crazy_world")
 end
+
 if not ConVarExists("cw_traitor_know_bonus") then
     CreateConVar("cw_traitor_know_bonus", 1, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Toggle traitor know who wears the bonus")
 end
+
 if not ConVarExists("cw_obj_health") then
     CreateConVar("cw_obj_health", 750, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Set the crazy world object\'s health")
 end
+
 if not ConVarExists("cw_event_time") then
     CreateConVar("cw_event_time", 120, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Set the crazy world event time")
 end
+
 if not ConVarExists("cw_obj_scale") then
     CreateConVar("cw_obj_scale", 3, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Set the crazy world object\'s size scale")
 end
+
 if not ConVarExists("cw_debug") then
     CreateConVar("cw_debug", 0, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Toggle the lua script debug")
 end
+
 if not ConVarExists("cw_play_sound") then
     CreateConVar("cw_play_sound", 1, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Play sound if event is activated")
 end
@@ -123,6 +129,7 @@ invisiblePly = nil -- TODO could use these vars instead of invisible bool vars..
 
 concommand.Add("cwtoggle", function(ply)
     local b = not GetConVar("cw_enabled"):GetBool()
+    
     SetConVar("cw_enabled", tonumber(b))
     
     if not b then
@@ -202,6 +209,7 @@ function OnCommandCrazyWorld()
 		local randAmount = math.random(1, 4)
 
 		local length = 0
+        
 		for _, v in pairs(action) do -- for every key in the table with a corresponding non-nil value 
 		   length = length + 1
 		end
@@ -240,13 +248,16 @@ function OnCommandCrazyWorld()
 	    end)
 
 		local i = 0
+        
 	    timer.Create("CWcwTime", 1, cwTime, function()
 	    	i = i + 1
+            
 	    	if i % 30 == 0 and i ~= cwTime then
 	    		for _, v in pairs(player.GetAll()) do
 	    			v:ChatPrint("[CW] " .. (cwTime - i) .. "s remaining!")
 	    		end
 	    	end
+            
 	    	if i == cwTime then
 	    		timer.Stop("CWcwTime")
 	    	end
@@ -296,6 +307,7 @@ function CreatePlayerHalos(time)
 				net.Start("TTTOnHaloCreate")
 		        net.Send(v)
 		    end
+            
 		    haloActive = true
 
 			timer.Simple(time, function()
@@ -312,6 +324,7 @@ function RemovePlayerHalos()
 				net.Start("TTTOnHaloRemove")
 		        net.Send(v)
 		    end
+            
 		    haloActive = false
 		end
 	end
@@ -320,16 +333,16 @@ end
 -- LetRandomPlayerShoot
 function LetRandomPlayerShoot(time)
 	if not randomPlayerShoot then
-		local activePlayers = GetActivePlayers()
-		local rand = math.random(1, #activePlayers)
-		local ply = activePlayers[rand]
+		local ply = GetRandomPlayer()
+        
+        if ply ~= nil and IsValid(ply) then
+            ply:ConCommand("+attack")
+            randomPlayerShoot = true
 
-		ply:ConCommand("+attack")
-		randomPlayerShoot = true
-
-		timer.Simple(time, function()
-			StopRandomPlayerShoot(ply)
-		end)
+            timer.Simple(time, function()
+                StopRandomPlayerShoot(ply)
+            end)
+        end
 	end
 end
 
@@ -346,6 +359,7 @@ function DisableFlashlights(time)
 	    v:Flashlight(false)
 		v:AllowFlashlight(false)
 	end
+    
 	flashlights = true
 
 	timer.Simple(time, function()
@@ -358,6 +372,7 @@ function EnableFlashlights()
 		for _, v in pairs(player.GetAll()) do
 			v:AllowFlashlight(true)
 		end
+        
 		flashlights = false
 	end
 end
@@ -370,6 +385,7 @@ function ScreenEffects(time)
 				net.Start("TTTOnScreenFlashStart")
 		        net.Send(v)
 			end
+            
 			screenEffect = true
 
 			timer.Simple(time, function()
@@ -386,6 +402,7 @@ function DisableScreenEffect()
 				net.Start("TTTOnScreenFlashEnd")
 		        net.Send(v)
 			end
+            
 			screenEffect = false
 		end
 	end
@@ -411,6 +428,7 @@ function Blind(time)
 				net.Start("TTTOnBlindStarts")
 		        net.Send(v)
 			end
+            
 			blind = true
 
 			timer.Simple(time, function()
@@ -427,6 +445,7 @@ function DisableBlind()
 				net.Start("TTTOnBlindEnds")
 		        net.Send(v)
 			end
+            
 			blind = false
 		end
 	end
@@ -440,6 +459,7 @@ function Fog(time)
 				net.Start("TTTOnFogCreate")
 		        net.Send(v)
 			end
+            
 			fog = true
 
 			timer.Simple(time, function()
@@ -456,6 +476,7 @@ function DisableFog()
 				net.Start("TTTOnFogRemove")
 		        net.Send(v)
 			end
+            
 			fog = false
 		end
 	end
@@ -470,6 +491,7 @@ function Names(time)
 				net.Start("TTTOnNameStarts")
 		        net.Send(v)
 			end
+            
 			names = true
 
 			timer.Simple(time, function()
@@ -486,6 +508,7 @@ function EnableNames()
 				net.Start("TTTOnNameEnds")
 		        net.Send(v)
 			end
+            
 			names = false
 		end
 	end
@@ -495,12 +518,15 @@ end
 function Minify(time)
     for _, v in pairs(GetActivePlayers()) do
 	    v:SetModelScale(0.5, 1)
+        
 	    if SERVER then 
 	    	v:SetMaxHealth(50) 
 	    end --beevis said so
+        
 	    v:SetHealth(v:Health() * 0.5)
 	    v:SetGravity(1.5)
 	end
+    
 	minified = true
 
 	timer.Simple(time, function()
@@ -512,9 +538,11 @@ function UnMinify()
 	if minified then
 	    for _, v in pairs(player.GetAll()) do
 		    v:SetModelScale(1, 1)
+            
 		    if SERVER then 
 		    	v:SetMaxHealth(100) 
 		    end --beevis said so
+            
 		    v:SetHealth(v:Health() * 2)
 		    v:SetGravity(1)
 		end
@@ -525,6 +553,7 @@ end
 -- SwitchPosition
 function SwitchPosition()
 	local plyTbl = {}
+    
 	for _, v in pairs(GetActivePlayers()) do
 		table.insert(plyTbl, v)
 	end
@@ -549,15 +578,20 @@ function SwitchPosition()
 	-- this way just switches player random
 	local rndPlyTbl = {}
 	local plyTblCopy = table.Copy(plyTbl)
+    
 	for _, v in pairs(plyTbl) do
 		local ply = table.Random(plyTblCopy)
+        
 		table.insert(rndPlyTbl, ply)
+        
 		RemoveFromTable(plyTblCopy, ply) -- prevent spawning 2 players on one spawn!
 	end
 
 	local i = 0
+    
 	for _, v in pairs(GetActivePlayers()) do
 		i = i + 1
+        
 		if not rndPlyTbl[i] == v then
 			v:SetPos(rndPlyTbl[i]:GetPos())
 		end
@@ -569,36 +603,41 @@ function StartVirus(time, rep, dmg)
 	if not virus then
 		-- IDEA: Kill the Host to abort virus
 		virusPly = GetRandomPlayer()
+        
+        if virusPly ~= nil and IsValid(virusPly) then
+            local i = 0
+            
+            timer.Create("TTTCWVirusTimer", time / rep, rep, function()
+                local newHealth = (virusPly:Health() - dmg)
+                
+                if newHealth <= 0 then
+                    virusPly:EmitSound("vo/npc/male01/pain09.wav")
+                    virusPly:Kill()
+                    EndVirus()
+                else
+                    virusPly:SetHealth(newHealth)
+                    virusPly:EmitSound("vo/npc/male01/pain0" .. tostring(math.random(1, 9)) .. ".wav")
+                    i = i + 1
+                    
+                    if i == rep then
+                        virusPly:ChatPrint("[CW] You survived the virus!")
+                        EndVirus()
+                    end
+                end
+            end)
 
-		local i = 0
-		timer.Create("TTTCWVirusTimer", time / rep, rep, function()
-			local newHealth = (virusPly:Health() - dmg)
-			if newHealth <= 0 then
-    			virusPly:EmitSound("vo/npc/male01/pain09.wav")
-				virusPly:Kill()
-	    		EndVirus()
-			else
-				virusPly:SetHealth(newHealth)
-    			virusPly:EmitSound("vo/npc/male01/pain0" .. tostring(math.random(1, 9)) .. ".wav")
-	    		i = i + 1
-	    		if i == rep then
-					virusPly:ChatPrint("[CW] You survived the virus!")
-	    			EndVirus()
-	    		end
-	    	end
-	    end)
+            hook.Add("PlayerHurt", "CWVirus", function(victim, attacker, healthRemaining, damageTaken)
+                if attacker:IsPlayer() and not attacker == victim then
+                    virusPly:ChatPrint("[CW] You gave the virus to '" .. victim:Nick() .. "'!")  
+                    virusPly = victim
+                    virusPly:ChatPrint("[CW] You got the virus from '" .. attacker:Nick() .. "'! Injure another player to get rid of the virus!")    
+                end
+            end)
 
-		hook.Add("PlayerHurt", "CWVirus", function(victim, attacker, healthRemaining, damageTaken)
-			if attacker:IsPlayer() and not attacker == victim then
-				virusPly:ChatPrint("[CW] You gave the virus to '" .. victim:Nick() .. "'!")  
-				virusPly = victim
-				virusPly:ChatPrint("[CW] You got the virus from '" .. attacker:Nick() .. "'! Injure another player to get rid of the virus!")    
-			end
-		end)
-
-		virus = true
-		
-		virusPly:ChatPrint("[CW] You got a virus! Injure another player to get rid of the virus!")    
+            virus = true
+            
+            virusPly:ChatPrint("[CW] You got a virus! Injure another player to get rid of the virus!")
+        end
 	end
 end
 
@@ -616,16 +655,23 @@ function FreezeRandomPlayer(time, rep, delay)
 	if SERVER then
 		if not freezed then
 			local i = 0
+            
 			timer.Create("TTTCWFreezeTimer", time / rep, rep, function()
 				ply = GetRandomPlayer()
-				ply:Freeze(true)
-				timer.Simple(delay, function()
-					ply:Freeze(false)
-				end)
-	    		i = i + 1
-	    		if i == rep then
-	    			EndFreeze()
-	    		end
+                
+                if ply ~= nil and IsValid(ply) then
+                    ply:Freeze(true)
+                    
+                    timer.Simple(delay, function()
+                        ply:Freeze(false)
+                    end)
+                    
+                    i = i + 1
+                    
+                    if i == rep then
+                        EndFreeze()
+                    end
+                end
 		    end)
 
 			freezed = true
@@ -647,6 +693,7 @@ function SpeedUp(time)
 	if not speededUp then
 		hook.Add("Move", "CWSpeedUp", function(ply, mv)
 			local speed = mv:GetMaxSpeed() * 3
+            
 			mv:SetMaxSpeed(speed)
 			mv:SetMaxClientSpeed(speed)
 		end)
@@ -671,48 +718,53 @@ function Invisibility(time)
 	if SERVER then
 		if not invisible then
 			invisiblePly = GetRandomPlayer()
-		    invisiblePly:SetBloodColor(DONT_BLEED)
-		    invisiblePly:DrawShadow(false)
-		    invisiblePly:Flashlight(false)
-		    invisiblePly:AllowFlashlight(false)
-		    invisiblePly:SetFOV(0, 0.2) -- why? TODO useful func?
-		    invisiblePly:SetNoDraw(true)
+            
+            if invisiblePly ~= nil and IsValid(invisiblePly) then
+                invisiblePly:SetBloodColor(DONT_BLEED)
+                invisiblePly:DrawShadow(false)
+                invisiblePly:Flashlight(false)
+                invisiblePly:AllowFlashlight(false)
+                invisiblePly:SetFOV(0, 0.2) -- why? TODO useful func?
+                invisiblePly:SetNoDraw(true)
+                invisiblePly:DrawWorldModel(false)
+                
+                local ownerwep = invisiblePly:GetActiveWeapon()
+                
+                if ownerwep.Base == "weapon_tttbase" then
+                   ownerwep:SetIronsights(false)
+                end
 
-		    invisiblePly:DrawWorldModel(false)
-		    local ownerwep = invisiblePly:GetActiveWeapon()
-		    if ownerwep.Base == "weapon_tttbase" then
-		      ownerwep:SetIronsights(false)
-		    end
+                timer.Simple(time, function()
+                    Visibility()
+                end)
 
-		    timer.Simple(time, function()
-		    	Visibility()
-		    end)
+                invisible = true
 
-		    invisible = true
-
-		    --[[
-				hook.Add("HUDDrawTargetID", "CWInvHideName", function()
-				    local trace = LocalPlayer():GetEyeTrace(MASK_SHOT)
-				    local ent = trace.Entity
-				    if IsValid(ent) and IsPlayer(ent) and ent:IsFakeDead() then return false end
-				end)
-		    ]]--
+                --[[
+                    hook.Add("HUDDrawTargetID", "CWInvHideName", function()
+                        local trace = LocalPlayer():GetEyeTrace(MASK_SHOT)
+                        local ent = trace.Entity
+                        if IsValid(ent) and IsPlayer(ent) and ent:IsFakeDead() then return false end
+                    end)
+                ]]--
+            end
 		end
 	end
 end
 
 function Visibility()
 	if SERVER then
-		if invisible then
+		if invisible and invisiblePly ~= nil and IsValid(invisiblePly) then
 		    invisiblePly:SetBloodColor(BLOOD_COLOR_RED)
 		    invisiblePly:DrawShadow(true)
 		    invisiblePly:AllowFlashlight(true)
 		    invisiblePly:SetNoDraw(false)
-
 		    invisiblePly:DrawWorldModel(true)
+            
 		    local ownerwep = invisiblePly:GetActiveWeapon()
+            
 		    if ownerwep.Base == "weapon_tttbase" then
-		      ownerwep:SetIronsights(true)
+		       ownerwep:SetIronsights(true)
 		    end
 
 		    invisiblePly = nil
@@ -759,6 +811,7 @@ function CleanUp()
         EndVirus()
         UnMinify()
         SpeedDown()
+        
         if SERVER then
             RemovePlayerHalos()
             DisableScreenEffect()
@@ -789,6 +842,7 @@ function ENTw:Initialize()
 
     self:SetMoveType(MOVETYPE_VPHYSICS)
     self:SetSolid(SOLID_VPHYSICS)
+    
     if SERVER then self:PhysicsInit(SOLID_VPHYSICS) end
 
     local phys = self:GetPhysicsObject()
@@ -820,9 +874,11 @@ end
 function ENTw:OnTakeDamage(dmg)
 	local newHealth = (self:Health() - dmg:GetDamage())
 	local atk = dmg:GetAttacker()
+    
 	if IsActivePlayer(atk) then
 		touchedPlayer = atk
 	end
+    
 	if newHealth <= 0 then
 		self:Remove()
 	else
@@ -849,14 +905,22 @@ function SpawnObj()
         if GetConVar("cw_enabled"):GetBool() then
             if spawnable then
                 local spawn = table.Random(ents.FindByClass("info_player_deathmatch"))
+                
                 obj = ents.Create("crazy_world_obj")
+                
                 if not IsValid(obj) then return end
+                
                 local pos = spawn:GetPos()
                 pos.z = (pos.z + 2)
+                
                 obj:SetPos(pos)
+                
                 local objScale = GetConVar("cw_obj_scale"):GetInt()
+                
                 obj:SetModelScale(objScale)
+                
                 local mins, maxs = obj:GetCollisionBounds()
+                
                 obj:SetCollisionBounds(mins * objScale, maxs * objScale)
                 obj:Spawn()
                 obj:Activate()
@@ -898,6 +962,7 @@ end)
 hook.Add("DoPlayerDeath", "CWEntityDeath", function(ply, attacker, dmg)
     if GetConVar("cw_enabled"):GetBool() then
         touchedPlayer = nil
+        
         if bonusAble then
             if not IsActivePlayer(ply) or ply == attacker or not IsActivePlayer(attacker) then
                 touchedPlayer = GetRandomPlayer()
@@ -905,6 +970,7 @@ hook.Add("DoPlayerDeath", "CWEntityDeath", function(ply, attacker, dmg)
                 touchedPlayer = attacker
                 touchedPlayer:ChatPrint("[CW] Soon the bonus will be yours!")
             end
+            
             if GetConVar("cw_traitor_know_bonus"):GetBool() and touchedPlayer ~= nil and IsValid(touchedPlayer) then
                 for _, v in pairs(player.GetAll()) do
                     if v:IsTraitor() then
@@ -917,10 +983,12 @@ hook.Add("DoPlayerDeath", "CWEntityDeath", function(ply, attacker, dmg)
 end)
 
 function GiveBonus(ply)
-	if not bonusAble or touchedPlayer == nil or ply == nil or not IsValid(ply) then return end
+	if not bonusAble or touchedPlayer == nil or not IsValid(touchedPlayer) or ply == nil or not IsValid(ply) then return end
+    
 	if SERVER then
 		ply:SetMaxHealth(ply:GetMaxHealth() * 2)
 	end --beevis said so
+    
 	ply:SetHealth(ply:GetMaxHealth())
 end
 
@@ -936,21 +1004,24 @@ end
 
 -- util functions
 function IsActivePlayer(ply)
-	return IsValid(ply) and ply:IsPlayer() and ply:Alive() and ply:IsActive()
+	return IsValid(ply) and ply:IsActive()
 end
 
 function GetActivePlayers()
 	local tmp = {}
+    
 	for _, v in pairs(player.GetAll()) do
 		if IsActivePlayer(v) then -- or simly 'if not v:IsSpec() then'
 			table.insert(tmp, v)
 		end
 	end
+    
 	return tmp
 end
 
 function GetRandomPlayer()
 	local tmp = GetActivePlayers()
+    
 	return tmp[math.random(1, #tmp)]
 end
 
@@ -960,14 +1031,17 @@ function RemoveFromTable(tbl, val)
 			tbl[k] = nil
 		end
 	end
+    
 	local tmp = {}
 	local i = 0
+    
 	for _, v in pairs(tbl) do
 		if not v == nil then
 			i = i + 1
 			tmp[i] = v
 		end
 	end
+    
 	tbl = tmp
 end
 
@@ -1039,19 +1113,20 @@ if CLIENT then
 	net.Receive("TTTOnScreenFade", function(len, ply)
 		local delay = 0.3
 		local hold = net.ReadInt(8)
+        
 		ply:ScreenFade(SCREENFADE.IN, Color(120, 120, 120, 150), delay, hold - 2 * delay)
 	end)
 
 	-- Blind
 	net.Receive("TTTOnBlindStarts", function(len, ply)
 		hook.Add("RenderScreenspaceEffects", "CWBlindness", function()
-			DrawSobel( 0 ) -- Draws Sobel effect (0 = Black Screen)
+			DrawSobel(0) -- Draws Sobel effect (0 = Black Screen)
 	    end)
 	end)
 
 	net.Receive("TTTOnBlindEnds", function(len, ply)
 	    hook.Add("RenderScreenspaceEffects", "CWBlindness", function()
-	    	DrawMaterialOverlay( "", 0 )
+	    	DrawMaterialOverlay("", 0)
 	    	hook.Remove("RenderScreenspaceEffects", "CWBlindness")
 	    end)
 	end)
